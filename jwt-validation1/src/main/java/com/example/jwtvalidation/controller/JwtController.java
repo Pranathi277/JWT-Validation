@@ -1,0 +1,75 @@
+
+package com.example.jwtvalidation.controller;
+
+import com.example.jwtvalidation.dto.JwtRequest;
+import com.example.jwtvalidation.dto.JwtResponse;
+import com.example.jwtvalidation.service.JwtService;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/jwt")
+public class JwtController {
+
+    private final JwtService jwtService;
+
+    public JwtController(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<?> validateToken(
+            @RequestBody JwtRequest request) {
+
+        try {
+            if (request == null ||
+                request.getToken() == null ||
+                request.getToken().isBlank()) {
+                return ResponseEntity.badRequest()
+                        .body("Token is required");
+            }
+
+            Claims claims =
+                    jwtService.validateToken(request.getToken());
+
+            String username = claims.getSubject();
+
+            Object roleClaim = claims.get("roles");
+
+            List<String> roles = roleClaim instanceof List<?> list
+                    ? list.stream()
+                        .map(String::valueOf)
+                        .toList()
+                    : List.of();
+
+            return ResponseEntity.ok(
+                    new JwtResponse(
+                            "Token is valid",
+                            username,
+                            roles
+                    )
+            );
+
+        } catch (JwtException | IllegalArgumentException e) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid token");
+        }
+    }
+    @PostMapping("/generate")
+    public ResponseEntity<String> generateToken(
+            @RequestParam String username,
+            @RequestParam boolean expired) {
+
+        return ResponseEntity.ok(
+            jwtService.generateTestToken(username, expired)
+        );
+    }
+}
